@@ -24,6 +24,7 @@
     .mono { font-variant-numeric: tabular-nums; }
     .pill { display:inline-block; padding:0.1rem 0.5rem; border-radius:999px; background:#eef6ff; color:#1b66c9; font-size:0.85rem; }
     .small { font-size: 0.9rem; }
+    a { color: #0b69c7; }
   </style>
 </head>
 
@@ -75,11 +76,15 @@
       <span class="hint" id="pensionOnlyHint">Gildir aðeins fyrir laun (ekki lífeyri).</span>
     </div>
 
+    <!-- Stöðugur skýringartexti (textContent í JS til að forðast “romsu”) -->
     <p class="hint" id="staticHint"></p>
   </div>
 
   <div id="results"></div>
+
+  <!-- Skýringartexti + heimild (heimildarhlekkur settur örugglega í JS) -->
   <div class="explain" id="explain"></div>
+  <div class="explain small" id="sourceLine"></div>
 
   <canvas id="chart" width="760" height="310"></canvas>
 
@@ -89,27 +94,34 @@
 
 <script>
 /* ================= FASTAR TÖLUR (2026) =================
-   Núverandi kerfi:
-   - Þrepamörk á mánuði: 498.122 og 1.398.450
-   - Tekjuskattur ríkis (án útsvars): 16,55% / 23,05% / 31,35%
-   - Persónuafsláttur: 72.492 kr./mán
+   Heimild (samantekt): https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026
 */
+
+// Þrepamörk (mán.)
 const BRACKETS = { b1: 498122, b2: 1398450 };
+
+// Tekjuskattur ríkis (án útsvars), 2026 (ríkishluti)
 const STATE = { r1: 0.1655, r2: 0.2305, r3: 0.3135 };
+
+// Persónuafsláttur 2026 (mán.)
 const PERSONAL_CREDIT = 72492;
 
 // Sjálfgefið útsvar (veg. meðaltal 2026)
 const DEFAULT_MUNICIPAL = 0.1494;
 
-// Skattleysismörk sem texti (til skýringar í UI)
+// Skattleysismörk (texta‑viðmið)
 const TAXFREE = { laun: 239798, lifeyrir: 230206 };
+
+// Heimildarhlekkur (notaður í skýringartexta)
+const SOURCE_URL = "https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026";
+const SOURCE_TEXT = "Skattþrep árið 2026 – Almenni‑Lífsverk";
 
 /* ================= HJÁLPARFÖLL ================= */
 const formatISK = x => x.toLocaleString("is-IS", { maximumFractionDigits: 0 });
 const clamp = (n, a, b) => Math.min(b, Math.max(a, n));
 
 function parsePercent(value, fallbackPct) {
-  // leyfa "14,94" og "14.94"
+  // Leyfa "14,94" og "14.94"
   const raw = (value ?? "").toString().trim().replace(",", ".");
   const num = Number(raw);
   if (!isFinite(num)) return fallbackPct;
@@ -131,24 +143,35 @@ function updateControls() {
   const incomeType = document.getElementById("incomeType").value;
   const wrap = document.getElementById("pensionDeductionControls");
   const box = document.getElementById("applyPensionDeduction");
-  const pensionHint = document.getElementById("pensionOnlyHint");
 
   if (incomeType === "lifeyrir") {
     wrap.style.display = "none";
     box.checked = false;
   } else {
     wrap.style.display = "flex";
-    pensionHint.style.display = "inline";
   }
 }
 
 function updateStaticHint() {
-  const hint = document.getElementById("staticHint");
   // textContent => engin Markdown/tenglar geta “fylgt með”
+  const hint = document.getElementById("staticHint");
   hint.textContent =
     "Persónuafsláttur 2026 er 72.492 kr./mán (869.898 kr./ár). " +
     "Skattþrep 2026: 0–498.122 (31,49%), 498.123–1.398.450 (37,99%), yfir 1.398.450 (46,29%). " +
     "Skattleysismörk: laun 239.798 kr./mán og lífeyrir 230.206 kr./mán (miðað við fulla nýtingu persónuafsláttar).";
+}
+
+function updateSourceLine() {
+  const source = document.getElementById("sourceLine");
+  source.textContent = "Heimild: ";
+
+  const a = document.createElement("a");
+  a.href = SOURCE_URL;
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.textContent = SOURCE_TEXT;
+
+  source.appendChild(a);
 }
 
 /* ================= SKATTSTOFN ================= */
@@ -222,8 +245,8 @@ function calculate() {
   const explainEl = document.getElementById("explain");
 
   errorEl.textContent = "";
-  resultsEl.innerHTML = ""; // töflu-HTML er OK (ekki tilvísanir)
-  explainEl.textContent = ""; // textContent til að forðast “romsu”
+  resultsEl.innerHTML = "";
+  explainEl.textContent = "";
 
   if (gross < 0) {
     errorEl.textContent = "Upphæð getur ekki verið neikvæð.";
@@ -238,7 +261,6 @@ function calculate() {
   const cur = calcCurrentSystem(gross, taxBase, municipalRate);
   const flat = calcFlatSystem(gross, taxBase, municipalRate);
 
-  // Skýringartexti án HTML/tengla
   const municipalPctStr = (municipalRate * 100).toFixed(2).replace(".", ",") + "%";
   const municipalTag = (Math.abs(municipalRate - DEFAULT_MUNICIPAL) < 1e-9)
     ? " (veg. meðalútsvar 2026)"
@@ -486,6 +508,7 @@ document.getElementById("applyPensionDeduction").addEventListener("change", calc
 document.getElementById("pensionRate").addEventListener("input", calculate);
 
 updateStaticHint();
+updateSourceLine();
 updateControls();
 calculate();
 </script>
