@@ -1,4 +1,243 @@
 <!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Skattatillögur Sjálfstæðisflokksins</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 700px; margin: 2rem auto; }
+    label, input, button { font-size: 1rem; }
+    input { padding: 0.3rem; width: 200px; box-sizing: border-box;}
+    .row { margin: 0.7rem 0; }
+    table { border-collapse: collapse; width: 100%; margin-top: 1em; background: #fff; }
+    th, td { border: 1px solid #ccc; padding: 0.7em; text-align: right; }
+    th:first-child, td:first-child { text-align: left; }
+    tfoot tr { background: #f8f8f8; }
+    .explain { font-size: 0.95em; color: #555; margin-top: 1em; }
+    #error { color: red; margin-left: 1em; }
+    canvas { display: block; margin: 1.5em 0 1em 0; max-width: 100%; }
+  </style>
+</head>
+
+<body>
+<h1>Skattatillögur Sjálfstæðisflokksins</h1>
+
+<form id="salaryForm" class="row">
+  <label for="salary">Laun fyrir skatt (ISK): </label>
+  <input id="salary" type="number" min="0" step="1000" value="400000">
+  <button type="submit">Calculate</button>
+  <span id="error"></span>
+</form>
+
+<div id="results"></div>
+
+<div class="explain">
+  <b>Effective rate:</b> Tax / gross salary.<br>
+  <b>Credit:</b> Mánaðarlegur persónuafsláttur dreginn frá reiknuðum skatti.
+</div>
+
+<canvas id="chart" width="600" height="220"></canvas>
+
+<div class="explain">
+  Greiddur skattur samkvæmt núverandi kerfi og tillögum.
+</div>
+
+<script>
+/* ================= TAX CALCS ================= */
+
+function calcCurrentSystem(gross) {
+  const credit = 72492;
+  const b1 = 498000;
+  const b2 = 1400000;
+  let tax = 0;
+
+  if (gross <= b1) {
+    tax = gross * 0.3149;
+  } else if (gross <= b2) {
+    tax = b1 * 0.3149 + (gross - b1) * 0.3799;
+  } else {
+    tax =
+      b1 * 0.3149 +
+      (b2 - b1) * 0.3799 +
+      (gross - b2) * 0.4629;
+  }
+
+  tax = Math.max(0, tax - credit);
+  return {
+    tax,
+    net: gross - tax,
+    effRate: gross > 0 ? (tax / gross) * 100 : 0
+  };
+}
+
+function calcFlatSystem(gross) {
+  const credit = 100000;
+  let tax = gross * 0.35;
+  tax = Math.max(0, tax - credit);
+  return {
+    tax,
+    net: gross - tax,
+    effRate: gross > 0 ? (tax / gross) * 100 : 0
+  };
+}
+
+/* ================= HELPERS ================= */
+
+const formatISK = x =>
+  x.toLocaleString("is-IS", { maximumFractionDigits: 0 });
+
+const formatPct = x => x.toFixed(1) + " %";
+
+/* ================= MAIN ================= */
+
+function calculate() {
+  const gross = Number(document.getElementById("salary").value) || 0;
+  const errorEl = document.getElementById("error");
+  const el = document.getElementById("results");
+  errorEl.textContent = "";
+
+  if (gross < 0) {
+    errorEl.textContent = "Salary cannot be negative.";
+    el.innerHTML = "";
+    clearChart();
+    return;
+  }
+
+  const cur = calcCurrentSystem(gross);
+  const flat = calcFlatSystem(gross);
+
+  el.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>System</th>
+          <th>Tax</th>
+          <th>Effective rate</th>
+          <th>Net pay</th>
+          <th>Credit</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Current progressive</b></td>
+          <td>ISK ${formatISK(cur.tax)}</td>
+          <td>${formatPct(cur.effRate)}</td>
+          <td>ISK ${formatISK(cur.net)}</td>
+          <td>ISK 72,492</td>
+        </tr>
+        <tr>
+          <td><b>Flat 35%</b></td>
+          <td>ISK ${formatISK(flat.tax)}</td>
+          <td>${formatPct(flat.effRate)}</td>
+          <td>ISK ${formatISK(flat.net)}</td>
+          <td>ISK 100,000</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td><b>Difference (flat − current)</b></td>
+          <td>ISK ${formatISK(flat.tax - cur.tax)}</td>
+          <td></td>
+          <td>ISK ${formatISK(flat.net - cur.net)}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+
+  drawChart();
+}
+
+/* ================= CHART ================= */
+
+function drawChart() {
+  const canvas = document.getElementById("chart");
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const maxGross = 2000000;
+  const step = 20000;
+
+  // find max NET for proper Y-scale
+  let maxNet = 0;
+  for (let g = 0; g <= maxGross; g += step) {
+    maxNet = Math.max(
+      maxNet,
+      calcCurrentSystem(g).net,
+      calcFlatSystem(g).net
+    );
+  }
+
+  // axes
+  ctx.beginPath();
+  ctx.moveTo(60, 10);
+  ctx.lineTo(60, 190);
+  ctx.lineTo(580, 190);
+  ctx.strokeStyle = "#bbb";
+  ctx.stroke();
+
+  ctx.font = "12px system-ui";
+  ctx.fillStyle = "#444";
+  ctx.fillText("Net pay (ISK)", 5, 20);
+  ctx.fillText("Gross salary", 480, 210);
+
+  // Y ticks
+  for (let i = 0; i <= 2; i++) {
+    const val = (i / 2) * maxNet;
+    const y = 190 - (val / maxNet) * 170;
+    ctx.fillText(formatISK(val), 5, y + 4);
+  }
+
+  // X ticks
+  for (let i = 0; i <= 4; i++) {
+    const g = (i / 4) * maxGross;
+    const x = 60 + (g / maxGross) * 520;
+    ctx.fillText(formatISK(g), x - 20, 205);
+  }
+
+  // current
+  ctx.beginPath();
+  for (let g = 0; g <= maxGross; g += step) {
+    const x = 60 + (g / maxGross) * 520;
+    const y = 190 - (calcCurrentSystem(g).net / maxNet) * 170;
+    g === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = "#0074d9";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+  ctx.fillStyle = "#0074d9";
+  ctx.fillText("Current", 120, 40);
+
+  // flat
+  ctx.beginPath();
+  for (let g = 0; g <= maxGross; g += step) {
+    const x = 60 + (g / maxGross) * 520;
+    const y = 190 - (calcFlatSystem(g).net / maxNet) * 170;
+    g === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = "#2ecc40";
+  ctx.stroke();
+  ctx.fillStyle = "#2ecc40";
+  ctx.fillText("Flat", 200, 70);
+}
+
+function clearChart() {
+  const canvas = document.getElementById("chart");
+  canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+}
+
+/* ================= INIT ================= */
+
+document.getElementById("salaryForm").addEventListener("submit", e => {
+  e.preventDefault();
+  calculate();
+});
+
+document.getElementById("salary").addEventListener("input", calculate);
+calculate();
+</script>
+</body>
+</html><!DOCTYPE html>
 <html lang="is">
 <head>
   <meta charset="UTF-8">
