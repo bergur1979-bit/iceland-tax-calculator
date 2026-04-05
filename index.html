@@ -2,12 +2,12 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Skattatillögur Sjálfstæðisflokksins</title>
+  <title>Iceland 2026 Tax Comparison</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body { font-family: system-ui, sans-serif; max-width: 700px; margin: 2rem auto; }
     label, input, button { font-size: 1rem; }
-    input { padding: 0.3rem; width: 200px; box-sizing: border-box;}
+    input { padding: 0.3rem; width: 200px; box-sizing: border-box; }
     .row { margin: 0.7rem 0; }
     table { border-collapse: collapse; width: 100%; margin-top: 1em; background: #fff; }
     th, td { border: 1px solid #ccc; padding: 0.7em; text-align: right; }
@@ -20,11 +20,12 @@
 </head>
 
 <body>
-<h1>Skattatillögur Sjálfstæðisflokksins</h1>
+
+<h1>Iceland 2026 Tax Comparison</h1>
 
 <form id="salaryForm" class="row">
-  <label for="salary">Laun fyrir skatt (ISK): </label>
-  <input id="salary" type="number" min="0" step="1000" value="400000">
+  <label for="salary">Monthly gross salary (ISK): </label>
+  <input id="salary" type="number" min="0" step="1000" value="900000">
   <button type="submit">Calculate</button>
   <span id="error"></span>
 </form>
@@ -32,21 +33,22 @@
 <div id="results"></div>
 
 <div class="explain">
-  <b>Effective rate:</b> Tax / gross salary.<br>
-  <b>Credit:</b> Mánaðarlegur persónuafsláttur dreginn frá reiknuðum skatti.
+  <b>Effective rate:</b> Tax divided by gross salary.<br>
+  <b>Credit:</b> Monthly personal tax-free amount deducted from payable tax.
 </div>
 
 <canvas id="chart" width="600" height="220"></canvas>
 
 <div class="explain">
-  Greiddur skattur samkvæmt núverandi kerfi og tillögum.
+  Net pay vs. gross salary for both systems.
 </div>
 
 <script>
-/* ================= TAX CALCS ================= */
+/* ================= TAX CALCULATIONS ================= */
 
+// Current progressive system
 function calcCurrentSystem(gross) {
-  const credit = 72492;
+  const credit = 230205; // monthly personal tax credit (2,762,458 ISK / year)
   const b1 = 498000;
   const b2 = 1400000;
   let tax = 0;
@@ -63,6 +65,7 @@ function calcCurrentSystem(gross) {
   }
 
   tax = Math.max(0, tax - credit);
+
   return {
     tax,
     net: gross - tax,
@@ -70,10 +73,12 @@ function calcCurrentSystem(gross) {
   };
 }
 
+// Flat tax system
 function calcFlatSystem(gross) {
-  const credit = 100000;
+  const credit = 100000; // monthly credit
   let tax = gross * 0.35;
   tax = Math.max(0, tax - credit);
+
   return {
     tax,
     net: gross - tax,
@@ -123,7 +128,7 @@ function calculate() {
           <td>ISK ${formatISK(cur.tax)}</td>
           <td>${formatPct(cur.effRate)}</td>
           <td>ISK ${formatISK(cur.net)}</td>
-          <td>ISK 72,492</td>
+          <td>ISK 230,205</td>
         </tr>
         <tr>
           <td><b>Flat 35%</b></td>
@@ -158,7 +163,7 @@ function drawChart() {
   const maxGross = 2000000;
   const step = 20000;
 
-  // find max NET for proper Y-scale
+  // find max net income for scaling
   let maxNet = 0;
   for (let g = 0; g <= maxGross; g += step) {
     maxNet = Math.max(
@@ -181,21 +186,21 @@ function drawChart() {
   ctx.fillText("Net pay (ISK)", 5, 20);
   ctx.fillText("Gross salary", 480, 210);
 
-  // Y ticks
+  // Y-axis ticks
   for (let i = 0; i <= 2; i++) {
     const val = (i / 2) * maxNet;
     const y = 190 - (val / maxNet) * 170;
     ctx.fillText(formatISK(val), 5, y + 4);
   }
 
-  // X ticks
+  // X-axis ticks
   for (let i = 0; i <= 4; i++) {
     const g = (i / 4) * maxGross;
     const x = 60 + (g / maxGross) * 520;
     ctx.fillText(formatISK(g), x - 20, 205);
   }
 
-  // current
+  // current system curve
   ctx.beginPath();
   for (let g = 0; g <= maxGross; g += step) {
     const x = 60 + (g / maxGross) * 520;
@@ -206,9 +211,9 @@ function drawChart() {
   ctx.lineWidth = 2;
   ctx.stroke();
   ctx.fillStyle = "#0074d9";
-  ctx.fillText("Current", 120, 40);
+  ctx.fillText("Current system", 120, 40);
 
-  // flat
+  // flat system curve
   ctx.beginPath();
   for (let g = 0; g <= maxGross; g += step) {
     const x = 60 + (g / maxGross) * 520;
@@ -216,9 +221,10 @@ function drawChart() {
     g === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   }
   ctx.strokeStyle = "#2ecc40";
+  ctx.lineWidth = 2;
   ctx.stroke();
   ctx.fillStyle = "#2ecc40";
-  ctx.fillText("Flat", 200, 70);
+  ctx.fillText("Flat tax", 200, 70);
 }
 
 function clearChart() {
@@ -236,134 +242,6 @@ document.getElementById("salaryForm").addEventListener("submit", e => {
 document.getElementById("salary").addEventListener("input", calculate);
 calculate();
 </script>
+
 </body>
-</html><!DOCTYPE html>
-<html lang="is">
-<head>
-  <meta charset="UTF-8">
-  <title>Skattasamanburður 2026 – Ísland</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body { font-family: system-ui, sans-serif; max-width: 700px; margin: 2rem auto; }
-    label, input, button { font-size: 1rem; }
-    input { padding: 0.3rem; width: 200px; box-sizing: border-box;}
-    .row { margin: 0.7rem 0; }
-    table { border-collapse: collapse; width: 100%; margin-top: 1em; background: #fff; }
-    th, td { border: 1px solid #ccc; padding: 0.7em; text-align: right; }
-    th:first-child, td:first-child { text-align: left; }
-    tfoot tr { background: #f8f8f8; }
-    .explain { font-size: 0.95em; color: #555; margin-top: 1em; }
-    #error { color: red; margin-left: 1em; }
-    canvas { display: block; margin: 1.5em 0 1em 0; max-width: 100%; }
-  </style>
-</head>
-
-<body>
-<h1>Skattasamanburður 2026</h1>
-
-<form id="salaryForm" class="row">
-  <label for="salary">Mánaðarlaun (brúttó, kr.): </label>
-  <input id="salary" type="number" min="0" step="1000" value="900000">
-  <button type="submit">Reikna</button>
-  <span id="error"></span>
-</form>
-
-<div id="results"></div>
-
-<div class="explain">
-  <b>Raunskattshlutfall:</b> Greiddur skattur / brúttólaun.<br>
-  <b>Persónuafsláttur:</b> Dregst frá útreiknuðum skatti.
-</div>
-
-<canvas id="chart" width="600" height="220"></canvas>
-
-<div class="explain">
-  Nettólaun sem fall af brúttólaunum í báðum kerfum.
-</div>
-
-<script>
-/* ================= SKATTAÚTREIKNINGAR ================= */
-
-function calcCurrentSystem(gross) {
-  const credit = 72492;
-  const b1 = 498000;
-  const b2 = 1400000;
-  let tax = 0;
-
-  if (gross <= b1) {
-    tax = gross * 0.3149;
-  } else if (gross <= b2) {
-    tax = b1 * 0.3149 + (gross - b1) * 0.3799;
-  } else {
-    tax =
-      b1 * 0.3149 +
-      (b2 - b1) * 0.3799 +
-      (gross - b2) * 0.4629;
-  }
-
-  tax = Math.max(0, tax - credit);
-  return {
-    tax,
-    net: gross - tax,
-    effRate: gross > 0 ? (tax / gross) * 100 : 0
-  };
-}
-
-function calcFlatSystem(gross) {
-  const credit = 100000;
-  let tax = gross * 0.35;
-  tax = Math.max(0, tax - credit);
-  return {
-    tax,
-    net: gross - tax,
-    effRate: gross > 0 ? (tax / gross) * 100 : 0
-  };
-}
-
-/* ================= HJÁLPARFÖLL ================= */
-
-const formatISK = x =>
-  x.toLocaleString("is-IS", { maximumFractionDigits: 0 });
-
-const formatPct = x => x.toFixed(1) + " %";
-
-/* ================= AÐALFALL ================= */
-
-function calculate() {
-  const gross = Number(document.getElementById("salary").value) || 0;
-  const errorEl = document.getElementById("error");
-  const el = document.getElementById("results");
-  errorEl.textContent = "";
-
-  if (gross < 0) {
-    errorEl.textContent = "Laun mega ekki vera neikvæð.";
-    el.innerHTML = "";
-    clearChart();
-    return;
-  }
-
-  const cur = calcCurrentSystem(gross);
-  const flat = calcFlatSystem(gross);
-
-  el.innerHTML = `
-    <table>
-      <thead>
-        <tr>
-          <th>Kerfi</th>
-          <th>Skattur</th>
-          <th>Raunskattshlutfall</th>
-          <th>Nettólaun</th>
-          <th>Persónuafsláttur</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><b>Núverandi stigskipt</b></td>
-          <td>${formatISK(cur.tax)} kr.</td>
-          <td>${formatPct(cur.effRate)}</td>
-          <td>${formatISK(cur.net)} kr.</td>
-          <td>72.492 kr.</td>
-        </tr>
-        <tr>
-          <td><b>Flatur 35%</b></td>
-          <td>${formatISK(flat.tax)} kr.</td>
+</html>
