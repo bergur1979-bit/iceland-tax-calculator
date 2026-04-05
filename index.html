@@ -25,7 +25,7 @@
 
 <form id="salaryForm" class="row">
   <label for="salary">Laun fyrir skatt (ISK): </label>
-  <input id="salary" type="number" min="0" step="1000" value="400000">
+  <input id="salary" type="number" min="0" step="1000" value="900000">
   <button type="submit">Reikna</button>
   <span id="error"></span>
 </form>
@@ -52,3 +52,266 @@
 /*
   ATH:
   Þetta er einföldun sem reiknar út frá "gross" (laun fyrir skatt).
+  Raunveruleg staðgreiðsla getur tekið mið af skattstofni eftir frádráttum (t.d. lífeyrisiðgjöldum).
+*/
+
+// Núverandi þrepaskipta kerfið (miðað við 2026 tölur fyrir þrep og persónuafslátt) [1](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[2](https://island.is/personuafslattur-og-skattthrep-launatekna/fjarhaedir-personuafslattar)
+function calcCurrentSystem(gross) {
+  const credit = 72492;   // mánaðarlegur persónuafsláttur 2026 (869.898 kr./ár) [2](https://island.is/personuafslattur-og-skattthrep-launatekna/fjarhaedir-personuafslattar)[1](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)
+  const b1 = 498122;      // þrepamörk 1 (kr./mán) [1](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)
+  const b2 = 1398450;     // þrepamörk 2 (kr./mán) [1](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)
+  let tax = 0;
+
+  // Skatthlutföll (sameinaður tekjuskattur + útsvar í staðgreiðslu) [1](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)
+  const r1 = 0.3149;
+  const r2 = 0.3799;
+  const r3 = 0.4629;
+
+  if (gross <= b1) {
+    tax = gross * r1;
+  } else if (gross <= b2) {
+    tax = b1 * r1 + (gross - b1) * r2;
+  } else {
+    tax =
+      b1 * r1 +
+      (b2 - b1) * r2 +
+      (gross - b2) * r3;
+  }
+
+  // Draga persónuafslátt frá (skattur getur ekki orðið neikvæður)
+  tax = Math.max(0, tax - credit);
+
+  return {
+    tax,
+    net: gross - tax,
+    effRate: gross > 0 ? (tax / gross) * 100 : 0
+  };
+}
+
+// Flatt skattkerfi (dæmi: 35% og fastur persónuafsláttur)
+function calcFlatSystem(gross) {
+  const credit = 100000; // mánaðarlegur afsláttur (samkvæmt þessari tillögu/dæmi)
+  let tax = gross * 0.35;
+  tax = Math.max(0, tax - credit);
+
+  return {
+    tax,
+    net: gross - tax,
+    effRate: gross > 0 ? (tax / gross) * 100 : 0
+  };
+}
+
+/* ================= HJÁLPARFÖLL ================= */
+
+const formatISK = x =>
+  x.toLocaleString("is-IS", { maximumFractionDigits: 0 });
+
+const formatPct = x => x.toFixed(1) + " %";
+
+/* ================= AÐALHLUTI ================= */
+
+function calculate() {
+  const gross = Number(document.getElementById("salary").value) || 0;
+  const errorEl = document.getElementById("error");
+  const el = document.getElementById("results");
+  errorEl.textContent = "";
+
+  if (gross < 0) {
+    errorEl.textContent = "Laun geta ekki verið neikvæð.";
+    el.innerHTML = "";
+    clearChart();
+    return;
+  }
+
+  const cur = calcCurrentSystem(gross);
+  const flat = calcFlatSystem(gross);
+
+  el.innerHTML = `
+    <table>
+      <thead>
+        <tr>
+          <th>Kerfi</th>
+          <th>Skattur</th>
+          <th>Áhrifahlutfall</th>
+          <th>Nettólaun</th>
+          <th>Persónuafsláttur</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Núverandi þrepaskipt</b></td>
+          <td>ISK ${formatISK(cur.tax)}</td>
+          <td>${formatPct(cur.effRate)}</td>
+          <td>ISK ${formatISK(cur.net)}</td>
+          <td>ISK 72,492</td>
+        </tr>
+        <tr>
+          <td><b>Flatur skattur 35%</b></td>
+          <td>ISK ${formatISK(flat.tax)}</td>
+          <td>${formatPct(flat.effRate)}</td>
+          <td>ISK ${formatISK(flat.net)}</td>
+          <td>ISK 100,000</td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td><b>Mismunur (flatur − núverandi)</b></td>
+          <td>ISK ${formatISK(flat.tax - cur.tax)}</td>
+          <td></td>
+          <td>ISK ${formatISK(flat.net - cur.net)}</td>
+          <td></td>
+        </tr>
+      </tfoot>
+    </table>
+  `;
+
+  drawChart();
+}
+
+/* ================= LÍNURIT ================= */
+
+function drawChart() {
+  const canvas = document.getElementById("chart");
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // “Margins” til að gefa pláss fyrir texta og koma í veg fyrir skörun
+  const M = { left: 80, right: 20, top: 20, bottom: 55 };
+  const x0 = M.left;
+  const y0 = canvas.height - M.bottom;
+  const x1 = canvas.width - M.right;
+  const y1 = M.top;
+  const plotW = x1 - x0;
+  const plotH = y0 - y1;
+
+  const maxGross = 2000000;
+  const step = 20000;
+
+  // Finna hæstu nettólaun til að kvarða (skala) línuritið
+  let maxNet = 0;
+  for (let g = 0; g <= maxGross; g += step) {
+    maxNet = Math.max(
+      maxNet,
+      calcCurrentSystem(g).net,
+      calcFlatSystem(g).net
+    );
+  }
+  if (maxNet <= 0) maxNet = 1;
+
+  // Hjálparföll til að varpa (map) yfir í pixel-hnit
+  const mapX = g => x0 + (g / maxGross) * plotW;
+  const mapY = net => y0 - (net / maxNet) * plotH;
+
+  // Ásar
+  ctx.beginPath();
+  ctx.moveTo(x0, y1);
+  ctx.lineTo(x0, y0);
+  ctx.lineTo(x1, y0);
+  ctx.strokeStyle = "#bbb";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  ctx.font = "12px system-ui";
+  ctx.fillStyle = "#444";
+
+  // Y-ás titill (lóðréttur) — forðar skörun við tölur
+  ctx.save();
+  ctx.translate(18, y1 + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = "center";
+  ctx.fillText("Nettólaun (ISK)", 0, 0);
+  ctx.restore();
+
+  // X-ás titill (miðjaður og neðar) — forðar skörun við tick-merkingar
+  ctx.textAlign = "center";
+  ctx.fillText("Heildarlaun", x0 + plotW / 2, canvas.height - 12);
+
+  // Y-ás ticks
+  ctx.textAlign = "right";
+  for (let i = 0; i <= 3; i++) {
+    const val = (i / 3) * maxNet;
+    const y = mapY(val);
+    ctx.fillText(formatISK(val), x0 - 8, y + 4);
+
+    // Léttar láréttar stoðlínur
+    ctx.beginPath();
+    ctx.moveTo(x0, y);
+    ctx.lineTo(x1, y);
+    ctx.strokeStyle = "#eee";
+    ctx.stroke();
+  }
+
+  // X-ás ticks
+  ctx.textAlign = "center";
+  for (let i = 0; i <= 4; i++) {
+    const g = (i / 4) * maxGross;
+    const x = mapX(g);
+    ctx.fillText(formatISK(g), x, y0 + 18);
+  }
+
+  // Ferill: núverandi kerfi
+  ctx.beginPath();
+  for (let g = 0; g <= maxGross; g += step) {
+    const x = mapX(g);
+    const y = mapY(calcCurrentSystem(g).net);
+    g === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = "#0074d9";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Ferill: flatt kerfi
+  ctx.beginPath();
+  for (let g = 0; g <= maxGross; g += step) {
+    const x = mapX(g);
+    const y = mapY(calcFlatSystem(g).net);
+    g === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+  }
+  ctx.strokeStyle = "#2ecc40";
+  ctx.lineWidth = 2;
+  ctx.stroke();
+
+  // Legend (til að texti sé ekki “í miðju” á grafi)
+  const lx = x1 - 170;
+  const ly = y1 + 10;
+  ctx.font = "12px system-ui";
+  ctx.textAlign = "left";
+
+  ctx.strokeStyle = "#0074d9";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(lx, ly);
+  ctx.lineTo(lx + 20, ly);
+  ctx.stroke();
+  ctx.fillStyle = "#0074d9";
+  ctx.fillText("Núverandi kerfi", lx + 28, ly + 4);
+
+  ctx.strokeStyle = "#2ecc40";
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  ctx.moveTo(lx, ly + 18);
+  ctx.lineTo(lx + 20, ly + 18);
+  ctx.stroke();
+  ctx.fillStyle = "#2ecc40";
+  ctx.fillText("Flatur skattur", lx + 28, ly + 22);
+}
+
+// Hreinsa línurit
+function clearChart() {
+  const canvas = document.getElementById("chart");
+  canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+}
+
+/* ================= RÆSING ================= */
+
+document.getElementById("salaryForm").addEventListener("submit", e => {
+  e.preventDefault();
+  calculate();
+});
+
+document.getElementById("salary").addEventListener("input", calculate);
+calculate();
+</script>
+
+</body>
+</html>
