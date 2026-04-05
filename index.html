@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="is">
 <head>
   <meta charset="UTF-8">
   <title>Skattatillögur Sjálfstæðisflokksins</title>
@@ -26,29 +26,29 @@
 <form id="salaryForm" class="row">
   <label for="salary">Laun fyrir skatt (ISK): </label>
   <input id="salary" type="number" min="0" step="1000" value="900000">
-  <button type="submit">Calculate</button>
+  <button type="submit">Reikna</button>
   <span id="error"></span>
 </form>
 
 <div id="results"></div>
 
 <div class="explain">
-  <b>Effective rate:</b> Tax divided by gross salary.<br>
-  <b>Credit:</b> Monthly personal tax-free amount deducted from payable tax.
+  <b>Áhrifahlutfall:</b> Skattur deilt með heildarlaunum.<br>
+  <b>Persónuafsláttur:</b> Mánaðarlegur persónuafsláttur sem dregst frá útreiknuðum skatti.
 </div>
 
 <canvas id="chart" width="600" height="220"></canvas>
 
 <div class="explain">
-  Net pay vs. gross salary for both systems.
+  Nettólaun miðað við heildarlaun í báðum kerfum.
 </div>
 
 <script>
-/* ================= TAX CALCULATIONS ================= */
+/* ================= SKATTÚTREIKNINGAR ================= */
 
-// Current progressive system
+// Núverandi þrepaskipta kerfið
 function calcCurrentSystem(gross) {
-  const credit = 230205; // monthly personal tax credit (2,762,458 ISK / year)
+  const credit = 230205; // mánaðarlegur persónuafsláttur (2.762.458 ISK / ár)
   const b1 = 498000;
   const b2 = 1400000;
   let tax = 0;
@@ -73,9 +73,9 @@ function calcCurrentSystem(gross) {
   };
 }
 
-// Flat tax system
+// Flatt skattkerfi
 function calcFlatSystem(gross) {
-  const credit = 100000; // monthly credit
+  const credit = 100000; // mánaðarlegur persónuafsláttur
   let tax = gross * 0.35;
   tax = Math.max(0, tax - credit);
 
@@ -86,14 +86,14 @@ function calcFlatSystem(gross) {
   };
 }
 
-/* ================= HELPERS ================= */
+/* ================= HJÁLPARFÖLL ================= */
 
 const formatISK = x =>
   x.toLocaleString("is-IS", { maximumFractionDigits: 0 });
 
 const formatPct = x => x.toFixed(1) + " %";
 
-/* ================= MAIN ================= */
+/* ================= AÐALHLUTI ================= */
 
 function calculate() {
   const gross = Number(document.getElementById("salary").value) || 0;
@@ -102,7 +102,7 @@ function calculate() {
   errorEl.textContent = "";
 
   if (gross < 0) {
-    errorEl.textContent = "Salary cannot be negative.";
+    errorEl.textContent = "Laun geta ekki verið neikvæð.";
     el.innerHTML = "";
     clearChart();
     return;
@@ -115,23 +115,23 @@ function calculate() {
     <table>
       <thead>
         <tr>
-          <th>System</th>
-          <th>Tax</th>
-          <th>Effective rate</th>
-          <th>Net pay</th>
-          <th>Credit</th>
+          <th>Kerfi</th>
+          <th>Skattur</th>
+          <th>Áhrifahlutfall</th>
+          <th>Nettólaun</th>
+          <th>Persónuafsláttur</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td><b>Current progressive</b></td>
+          <td><b>Núverandi þrepaskipt</b></td>
           <td>ISK ${formatISK(cur.tax)}</td>
           <td>${formatPct(cur.effRate)}</td>
           <td>ISK ${formatISK(cur.net)}</td>
           <td>ISK 230,205</td>
         </tr>
         <tr>
-          <td><b>Flat 35%</b></td>
+          <td><b>Flatur skattur 35%</b></td>
           <td>ISK ${formatISK(flat.tax)}</td>
           <td>${formatPct(flat.effRate)}</td>
           <td>ISK ${formatISK(flat.net)}</td>
@@ -140,7 +140,7 @@ function calculate() {
       </tbody>
       <tfoot>
         <tr>
-          <td><b>Difference (flat − current)</b></td>
+          <td><b>Mismunur (flatur − núverandi)</b></td>
           <td>ISK ${formatISK(flat.tax - cur.tax)}</td>
           <td></td>
           <td>ISK ${formatISK(flat.net - cur.net)}</td>
@@ -153,7 +153,7 @@ function calculate() {
   drawChart();
 }
 
-/* ================= CHART ================= */
+/* ================= LÍNURIT ================= */
 
 function drawChart() {
   const canvas = document.getElementById("chart");
@@ -163,7 +163,7 @@ function drawChart() {
   const maxGross = 2000000;
   const step = 20000;
 
-  // find max net income for scaling
+  // Finna hæstu nettólaun til að kvarða (skala) línuritið
   let maxNet = 0;
   for (let g = 0; g <= maxGross; g += step) {
     maxNet = Math.max(
@@ -173,7 +173,7 @@ function drawChart() {
     );
   }
 
-  // axes
+  // Ásar
   ctx.beginPath();
   ctx.moveTo(60, 10);
   ctx.lineTo(60, 190);
@@ -183,24 +183,24 @@ function drawChart() {
 
   ctx.font = "12px system-ui";
   ctx.fillStyle = "#444";
-  ctx.fillText("Net pay (ISK)", 5, 20);
-  ctx.fillText("Gross salary", 480, 210);
+  ctx.fillText("Nettólaun (ISK)", 5, 20);
+  ctx.fillText("Heildarlaun", 500, 210);
 
-  // Y-axis ticks
+  // Merkingar á Y-ás (kvarði)
   for (let i = 0; i <= 2; i++) {
     const val = (i / 2) * maxNet;
     const y = 190 - (val / maxNet) * 170;
     ctx.fillText(formatISK(val), 5, y + 4);
   }
 
-  // X-axis ticks
+  // Merkingar á X-ás (kvarði)
   for (let i = 0; i <= 4; i++) {
     const g = (i / 4) * maxGross;
     const x = 60 + (g / maxGross) * 520;
     ctx.fillText(formatISK(g), x - 20, 205);
   }
 
-  // current system curve
+  // Ferill: núverandi kerfi
   ctx.beginPath();
   for (let g = 0; g <= maxGross; g += step) {
     const x = 60 + (g / maxGross) * 520;
@@ -211,9 +211,9 @@ function drawChart() {
   ctx.lineWidth = 2;
   ctx.stroke();
   ctx.fillStyle = "#0074d9";
-  ctx.fillText("Current system", 120, 40);
+  ctx.fillText("Núverandi kerfi", 120, 40);
 
-  // flat system curve
+  // Ferill: flatt kerfi
   ctx.beginPath();
   for (let g = 0; g <= maxGross; g += step) {
     const x = 60 + (g / maxGross) * 520;
@@ -224,7 +224,7 @@ function drawChart() {
   ctx.lineWidth = 2;
   ctx.stroke();
   ctx.fillStyle = "#2ecc40";
-  ctx.fillText("Flat tax", 200, 70);
+  ctx.fillText("Flatur skattur", 200, 70);
 }
 
 function clearChart() {
@@ -232,7 +232,7 @@ function clearChart() {
   canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
 }
 
-/* ================= INIT ================= */
+/* ================= RÆSING ================= */
 
 document.getElementById("salaryForm").addEventListener("submit", e => {
   e.preventDefault();
