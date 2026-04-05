@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="is">
 <head>
   <meta charset="UTF-8">
-  <title>Iceland 2026 Tax Calculator</title>
+  <title>Skattasamanburður 2026 – Ísland</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
     body { font-family: system-ui, sans-serif; max-width: 700px; margin: 2rem auto; }
@@ -20,30 +20,30 @@
 </head>
 
 <body>
-<h1>Iceland 2026 Tax Comparison</h1>
+<h1>Skattasamanburður 2026</h1>
 
 <form id="salaryForm" class="row">
-  <label for="salary">Monthly gross salary (ISK): </label>
+  <label for="salary">Mánaðarlaun (brúttó, kr.): </label>
   <input id="salary" type="number" min="0" step="1000" value="900000">
-  <button type="submit">Calculate</button>
+  <button type="submit">Reikna</button>
   <span id="error"></span>
 </form>
 
 <div id="results"></div>
 
 <div class="explain">
-  <b>Effective rate:</b> Tax / gross salary.<br>
-  <b>Credit:</b> Monthly personal tax credit deducted from payable tax.
+  <b>Raunskattshlutfall:</b> Greiddur skattur / brúttólaun.<br>
+  <b>Persónuafsláttur:</b> Dregst frá útreiknuðum skatti.
 </div>
 
 <canvas id="chart" width="600" height="220"></canvas>
 
 <div class="explain">
-  Net pay vs. gross salary for both systems.
+  Nettólaun sem fall af brúttólaunum í báðum kerfum.
 </div>
 
 <script>
-/* ================= TAX CALCS ================= */
+/* ================= SKATTAÚTREIKNINGAR ================= */
 
 function calcCurrentSystem(gross) {
   const credit = 72492;
@@ -81,14 +81,14 @@ function calcFlatSystem(gross) {
   };
 }
 
-/* ================= HELPERS ================= */
+/* ================= HJÁLPARFÖLL ================= */
 
 const formatISK = x =>
   x.toLocaleString("is-IS", { maximumFractionDigits: 0 });
 
 const formatPct = x => x.toFixed(1) + " %";
 
-/* ================= MAIN ================= */
+/* ================= AÐALFALL ================= */
 
 function calculate() {
   const gross = Number(document.getElementById("salary").value) || 0;
@@ -97,7 +97,7 @@ function calculate() {
   errorEl.textContent = "";
 
   if (gross < 0) {
-    errorEl.textContent = "Salary cannot be negative.";
+    errorEl.textContent = "Laun mega ekki vera neikvæð.";
     el.innerHTML = "";
     clearChart();
     return;
@@ -110,28 +110,21 @@ function calculate() {
     <table>
       <thead>
         <tr>
-          <th>System</th>
-          <th>Tax</th>
-          <th>Effective rate</th>
-          <th>Net pay</th>
-          <th>Credit</th>
+          <th>Kerfi</th>
+          <th>Skattur</th>
+          <th>Raunskattshlutfall</th>
+          <th>Nettólaun</th>
+          <th>Persónuafsláttur</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td><b>Current progressive</b></td>
-          <td>ISK ${formatISK(cur.tax)}</td>
+          <td><b>Núverandi stigskipt</b></td>
+          <td>${formatISK(cur.tax)} kr.</td>
           <td>${formatPct(cur.effRate)}</td>
-          <td>ISK ${formatISK(cur.net)}</td>
-          <td>ISK 72,492</td>
+          <td>${formatISK(cur.net)} kr.</td>
+          <td>72.492 kr.</td>
         </tr>
         <tr>
-          <td><b>Flat 35%</b></td>
-          <td>ISK ${formatISK(flat.tax)}</td>
-          <td>${formatPct(flat.effRate)}</td>
-          <td>ISK ${formatISK(flat.net)}</td>
-          <td>ISK 100,000</td>
-        </tr>
-      </tbody>
-      <tfoot>
-        <tr>
+          <td><b>Flatur 35%</b></td>
+          <td>${formatISK(flat.tax)} kr.</td>
