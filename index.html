@@ -5,17 +5,26 @@
   <title>Skattatillögur Sjálfstæðisflokksins</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 700px; margin: 2rem auto; }
-    label, input, button { font-size: 1rem; }
-    input { padding: 0.3rem; width: 200px; box-sizing: border-box; }
-    .row { margin: 0.7rem 0; }
+    body { font-family: system-ui, sans-serif; max-width: 760px; margin: 2rem auto; padding: 0 1rem; }
+    label, input, button, select { font-size: 1rem; }
+    input, select { padding: 0.35rem; box-sizing: border-box; }
+    input[type="number"] { width: 220px; }
+    .row { margin: 0.7rem 0; display: flex; gap: 0.6rem; align-items: center; flex-wrap: wrap; }
+    .row .spacer { flex: 1; }
+    .controls { margin-top: 0.5rem; padding: 0.8rem; border: 1px solid #e5e5e5; border-radius: 10px; background: #fafafa; }
+    .controls .row { margin: 0.45rem 0; }
+    .hint { font-size: 0.9rem; color: #555; margin: 0.2rem 0 0 0; }
     table { border-collapse: collapse; width: 100%; margin-top: 1em; background: #fff; }
     th, td { border: 1px solid #ccc; padding: 0.7em; text-align: right; }
     th:first-child, td:first-child { text-align: left; }
     tfoot tr { background: #f8f8f8; }
     .explain { font-size: 0.95em; color: #555; margin-top: 1em; line-height: 1.35; }
-    #error { color: red; margin-left: 1em; }
-    canvas { display: block; margin: 1.5em 0 1em 0; max-width: 100%; }
+    #error { color: red; margin-left: 0.5em; }
+    canvas { display: block; margin: 1.2em 0 0.8em 0; max-width: 100%; }
+    details { margin-top: 0.8rem; }
+    details summary { cursor: pointer; font-weight: 600; }
+    .mono { font-variant-numeric: tabular-nums; }
+    a { color: #0b69c7; }
   </style>
 </head>
 
@@ -24,91 +33,201 @@
 <h1>Skattatillögur Sjálfstæðisflokksins</h1>
 
 <form id="salaryForm" class="row">
-  <label for="salary">Laun fyrir skatt (ISK): </label>
-  <input id="salary" type="number" min="0" step="1000" value="400000">
+  <label for="salary">Upphæð (ISK):</label>
+  <input id="salary" type="number" min="0" step="1000" value="900000">
   <button type="submit">Reikna</button>
   <span id="error"></span>
 </form>
 
+<div class="controls" aria-label="Valmöguleikar">
+  <div class="row">
+    <label for="incomeType"><b>Tegund tekna:</b></label>
+    <select id="incomeType">
+      <option value="laun">Launatekjur</option>
+      <option value="lifeyrir">Lífeyristekjur</option>
+    </select>
+
+    <span class="spacer"></span>
+
+    <label style="display:flex; align-items:center; gap:0.5rem;">
+      <input id="applyPensionDeduction" type="checkbox">
+      Draga iðgjald launþega í lífeyrissjóð frá skattstofni
+    </label>
+
+    <label for="pensionRate">Iðgjald (%):</label>
+    <input id="pensionRate" type="number" min="0" max="30" step="0.1" value="4.0">
+  </div>
+  <p class="hint">
+    Skattleysismörk 2026: <span class="mono">239.798 kr./mán</span> fyrir <b>laun</b> (með tilliti til lífeyrisiðgjalds launþega) og
+    <span class="mono">230.206 kr./mán</span> fyrir <b>lífeyri</b>. [1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[3](https://www.gildi.is/lifeyrir/skattlagning-lifeyris/)
+  </p>
+</div>
+
 <div id="results"></div>
 
-<div class="explain">
-  <b>Áhrifahlutfall:</b> Skattur deilt með heildarlaunum.<br>
-  <b>Persónuafsláttur:</b> Fast upphæð sem dregst frá útreiknuðum skatti (2026: 72.492 kr./mán). [2](https://island.is/personuafslattur-og-skattthrep-launatekna/fjarhaedir-personuafslattar)<br>
-  <b>Skattleysismörk (tekjuskattsstofns):</b> Sú mánaðarlega fjárhæð þar sem skattur í 1. þrepi jafngildir persónuafslætti og tekjuskattur verður því 0
-  (2026: 230.206 kr./mán eða 2.762.458 kr./ár). [1](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)
-</div>
+<div id="explain" class="explain"></div>
 
 <!-- Hærra canvas til að gefa pláss fyrir ás-merkingar -->
-<canvas id="chart" width="600" height="260"></canvas>
+<canvas id="chart" width="640" height="270"></canvas>
 
 <div class="explain">
-  Nettólaun miðað við heildarlaun í báðum kerfum.
+  Nettólaun miðað við upphæð (brúttó) í báðum kerfum.
 </div>
 
+<details>
+  <summary>Nánari upplýsingar (2026)</summary>
+  <div class="explain">
+    <p>
+      Fjármála- og efnahagsráðuneytið hefur birt upplýsingar um skattþrep og skattaprósentur fyrir árið 2026. [1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)
+    </p>
+    <p>
+      Persónuafsláttur 2026 er <span class="mono">72.492 kr./mán</span> (<span class="mono">869.898 kr./ár</span>). [4](https://island.is/personuafslattur-og-skattthrep-launatekna/daemi-um-nytingu-personuafslattar-og-skattthrep)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)
+      Skattþrep 2026: 1. þrep <span class="mono">0–498.122</span> (31,49%), 2. þrep <span class="mono">498.123–1.398.450</span> (37,99%),
+      3. þrep yfir <span class="mono">1.398.450</span> (46,29%). [4](https://island.is/personuafslattur-og-skattthrep-launatekna/daemi-um-nytingu-personuafslattar-og-skattthrep)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)
+    </p>
+    <p>
+      Skattleysismörk launatekna á mánuði eru <span class="mono">239.798 kr.</span> og skattleysismörk lífeyristekna <span class="mono">230.206 kr.</span>. [1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[3](https://www.gildi.is/lifeyrir/skattlagning-lifeyris/)
+    </p>
+    <p>
+      Nánari upplýsingar: <a href="https://www.skatturinn.is/einstaklingar/stadgreidsla/stadgreidsla/2026/" target="_blank" rel="noopener">Skatturinn.is – Staðgreiðsla 2026</a>. [5](https://www.skatturinn.is/einstaklingar/stadgreidsla/stadgreidsla/2026/)
+    </p>
+  </div>
+</details>
+
 <script>
-/* ================= SKATTÚTREIKNINGAR ================= */
+/* ================= FASTAR TÖLUR (2026) ================= */
 
-/*
-  ATH:
-  Þetta er einföldun sem reiknar út frá "gross" (laun fyrir skatt).
-  Raunveruleg staðgreiðsla getur tekið mið af skattstofni eftir frádráttum (t.d. lífeyrisiðgjöldum).
-*/
+// Persónuafsláttur og þrepamörk 2026 [4](https://island.is/personuafslattur-og-skattthrep-launatekna/daemi-um-nytingu-personuafslattar-og-skattthrep)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)
+const CURRENT = {
+  credit: 72492,   // kr./mán [4](https://island.is/personuafslattur-og-skattthrep-launatekna/daemi-um-nytingu-personuafslattar-og-skattthrep)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)
+  b1: 498122,      // kr./mán [4](https://island.is/personuafslattur-og-skattthrep-launatekna/daemi-um-nytingu-personuafslattar-og-skattthrep)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)
+  b2: 1398450,     // kr./mán [4](https://island.is/personuafslattur-og-skattthrep-launatekna/daemi-um-nytingu-personuafslattar-og-skattthrep)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)
+  r1: 0.3149,
+  r2: 0.3799,
+  r3: 0.4629
+};
 
-// Núverandi þrepaskipta kerfið (miðað við 2026 tölur fyrir þrep og persónuafslátt) [1](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[2](https://island.is/personuafslattur-og-skattthrep-launatekna/fjarhaedir-personuafslattar)
-function calcCurrentSystem(gross) {
-  const credit = 72492;   // mánaðarlegur persónuafsláttur 2026 (869.898 kr./ár) [2](https://island.is/personuafslattur-og-skattthrep-launatekna/fjarhaedir-personuafslattar)[1](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)
-  const b1 = 498122;      // þrepamörk 1 (kr./mán) [1](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)
-  const b2 = 1398450;     // þrepamörk 2 (kr./mán) [1](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)
-  let tax = 0;
-
-  // Skatthlutföll (sameinaður tekjuskattur + útsvar í staðgreiðslu) [1](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)
-  const r1 = 0.3149;
-  const r2 = 0.3799;
-  const r3 = 0.4629;
-
-  if (gross <= b1) {
-    tax = gross * r1;
-  } else if (gross <= b2) {
-    tax = b1 * r1 + (gross - b1) * r2;
-  } else {
-    tax =
-      b1 * r1 +
-      (b2 - b1) * r2 +
-      (gross - b2) * r3;
-  }
-
-  // Draga persónuafslátt frá (skattur getur ekki orðið neikvæður)
-  tax = Math.max(0, tax - credit);
-
-  return {
-    tax,
-    net: gross - tax,
-    effRate: gross > 0 ? (tax / gross) * 100 : 0
-  };
-}
-
-// Flatt skattkerfi (dæmi: 35% og fastur persónuafsláttur)
-function calcFlatSystem(gross) {
-  const credit = 100000; // mánaðarlegur afsláttur (samkvæmt þessari tillögu/dæmi)
-  let tax = gross * 0.35;
-  tax = Math.max(0, tax - credit);
-
-  return {
-    tax,
-    net: gross - tax,
-    effRate: gross > 0 ? (tax / gross) * 100 : 0
-  };
-}
+// Skattleysismörk sem birt eru opinberlega fyrir 2026 [1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[3](https://www.gildi.is/lifeyrir/skattlagning-lifeyris/)
+const TAXFREE = {
+  laun: 239798,     // skattleysismörk launatekna á mánuði [1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)
+  lifeyrir: 230206  // skattleysismörk lífeyristekna á mánuði [1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)[3](https://www.gildi.is/lifeyrir/skattlagning-lifeyris/)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)
+};
 
 /* ================= HJÁLPARFÖLL ================= */
 
-const formatISK = x =>
-  x.toLocaleString("is-IS", { maximumFractionDigits: 0 });
-
+const formatISK = x => x.toLocaleString("is-IS", { maximumFractionDigits: 0 });
 const formatPct = x => x.toFixed(1) + " %";
 
-/* ================= AÐALHLUTI ================= */
+function clamp(n, a, b) { return Math.min(b, Math.max(a, n)); }
+
+/*
+  Útreikningur á skattstofni:
+  - Ef "Draga iðgjald..." er virkt: taxBase = gross * (1 - rate)
+  - Annars: taxBase = gross
+*/
+function computeTaxBase(gross) {
+  const incomeType = document.getElementById("incomeType").value;
+  const apply = document.getElementById("applyPensionDeduction").checked;
+  const rateInput = Number(document.getElementById("pensionRate").value);
+
+  // Fyrir lífeyri höldum þessu einföldu: ekki draga frá skattstofni (samræmist skattleysismörkum lífeyris) [1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)[3](https://www.gildi.is/lifeyrir/skattlagning-lifeyris/)
+  if (incomeType === "lifeyrir") return { taxBase: gross, rate: 0, applied: false };
+
+  if (!apply) return { taxBase: gross, rate: 0, applied: false };
+
+  const rate = clamp(isFinite(rateInput) ? rateInput : 0, 0, 30) / 100;
+  return { taxBase: gross * (1 - rate), rate, applied: true };
+}
+
+/* ================= SKATTÚTREIKNINGAR ================= */
+
+// Núverandi þrepaskipta kerfið (2026) [4](https://island.is/personuafslattur-og-skattthrep-launatekna/daemi-um-nytingu-personuafslattar-og-skattthrep)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)
+function calcCurrentSystemFromTaxBase(gross, taxBase) {
+  const { credit, b1, b2, r1, r2, r3 } = CURRENT;
+  let tax = 0;
+
+  if (taxBase <= b1) {
+    tax = taxBase * r1;
+  } else if (taxBase <= b2) {
+    tax = b1 * r1 + (taxBase - b1) * r2;
+  } else {
+    tax = b1 * r1 + (b2 - b1) * r2 + (taxBase - b2) * r3;
+  }
+
+  tax = Math.max(0, tax - credit);
+
+  return {
+    tax,
+    net: gross - tax,
+    effRate: gross > 0 ? (tax / gross) * 100 : 0
+  };
+}
+
+// Flatt skattkerfi (dæmi: 35% og fastur afsláttur)
+function calcFlatSystemFromTaxBase(gross, taxBase) {
+  const credit = 100000; // í þessu dæmi
+  let tax = taxBase * 0.35;
+  tax = Math.max(0, tax - credit);
+
+  return {
+    tax,
+    net: gross - tax,
+    effRate: gross > 0 ? (tax / gross) * 100 : 0
+  };
+}
+
+/* ================= UI / SKÝRINGAR ================= */
+
+function updateControls() {
+  const incomeType = document.getElementById("incomeType").value;
+  const apply = document.getElementById("applyPensionDeduction");
+  const rate = document.getElementById("pensionRate");
+
+  if (incomeType === "lifeyrir") {
+    apply.checked = false;
+    apply.disabled = true;
+    rate.disabled = true;
+  } else {
+    apply.disabled = false;
+    rate.disabled = !apply.checked;
+  }
+}
+
+function updateExplain() {
+  const incomeType = document.getElementById("incomeType").value;
+  const apply = document.getElementById("applyPensionDeduction").checked;
+  const ratePct = Number(document.getElementById("pensionRate").value);
+
+  const selectedTaxfree = incomeType === "lifeyrir" ? TAXFREE.lifeyrir : TAXFREE.laun;
+  const otherTaxfree = incomeType === "lifeyrir" ? TAXFREE.laun : TAXFREE.lifeyrir;
+
+  // “Skattleysismörk tekjuskattsstofns” (230.206) eru líka í opinberri töflu (Stjórnarráð) [2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)
+  const baseTaxfree = TAXFREE.lifeyrir;
+
+  // Afleidd prósenta sem tengir 239.798 (laun) við 230.206 (stofn) — sýnt sem útreikningshjálp, ekki “lög”:
+  const impliedRate = 100 * (1 - (baseTaxfree / TAXFREE.laun));
+
+  document.getElementById("explain").innerHTML = `
+    <b>Áhrifahlutfall:</b> Skattur deilt með upphæð (brúttó).<br>
+    <b>Persónuafsláttur (2026):</b> ISK ${formatISK(CURRENT.credit)} á mánuði. [4](https://island.is/personuafslattur-og-skattthrep-launatekna/daemi-um-nytingu-personuafslattar-og-skattthrep)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)<br>
+    <b>Skattleysismörk (2026):</b>
+      <span class="mono">ISK ${formatISK(selectedTaxfree)}/mán</span> fyrir <b>${incomeType === "lifeyrir" ? "lífeyri" : "laun"}</b>.
+      (Hitt: <span class="mono">ISK ${formatISK(otherTaxfree)}/mán</span>). [1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)[2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[3](https://www.gildi.is/lifeyrir/skattlagning-lifeyris/)
+    <br>
+    <span class="hint">
+      ${incomeType === "laun"
+        ? `Þegar “draga iðgjald...” er virkt er skattstofn lækkaður áður en þrep eru reiknuð (til að samræmast því að skattleysismörk launa eru birt “með tilliti til iðgjalds”). [2](https://www.stjornarradid.is/efst-a-baugi/frettir/stok-frett/2025/12/23/Skattabreytingar-a-arinu-2026/)[1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)`
+        : `Fyrir lífeyri er hér miðað við skattleysismörk lífeyristekna (230.206). [1](https://www.almenni-lifsverk.is/frettir/skattthrep-arid-2026)[3](https://www.gildi.is/lifeyrir/skattlagning-lifeyris/)`
+      }
+      ${incomeType === "laun"
+        ? `<br><span class="hint">Ath: Munurinn milli 239.798 (laun) og 230.206 (skattstofn) jafngildir afleiðslu um ~${impliedRate.toFixed(1)}% frádrátt á stofni (sýnt sem hjálpartala; þú getur breytt prósentunni).</span>`
+        : ""
+      }
+    </span>
+  `;
+}
+
+/* ================= TÖFLUÚTGÁFA + GRAF ================= */
 
 function calculate() {
   const gross = Number(document.getElementById("salary").value) || 0;
@@ -116,34 +235,43 @@ function calculate() {
   const el = document.getElementById("results");
   errorEl.textContent = "";
 
+  updateControls();
+
   if (gross < 0) {
-    errorEl.textContent = "Laun geta ekki verið neikvæð.";
+    errorEl.textContent = "Upphæð getur ekki verið neikvæð.";
     el.innerHTML = "";
     clearChart();
     return;
   }
 
-  const cur = calcCurrentSystem(gross);
-  const flat = calcFlatSystem(gross);
+  const { taxBase, rate, applied } = computeTaxBase(gross);
+
+  const cur = calcCurrentSystemFromTaxBase(gross, taxBase);
+  const flat = calcFlatSystemFromTaxBase(gross, taxBase);
+
+  const taxBaseLine = applied
+    ? `Skattstofn (eftir ${ (rate*100).toFixed(1) }% frádrátt): ISK ${formatISK(taxBase)}`
+    : `Skattstofn: ISK ${formatISK(taxBase)}`;
 
   el.innerHTML = `
+    <div class="hint" style="margin-top:0.6rem;"><b>${taxBaseLine}</b></div>
     <table>
       <thead>
         <tr>
           <th>Kerfi</th>
           <th>Skattur</th>
           <th>Áhrifahlutfall</th>
-          <th>Nettólaun</th>
+          <th>Nettó</th>
           <th>Persónuafsláttur</th>
         </tr>
       </thead>
       <tbody>
         <tr>
-          <td><b>Núverandi þrepaskipt</b></td>
+          <td><b>Núverandi þrepaskipt (2026)</b></td>
           <td>ISK ${formatISK(cur.tax)}</td>
           <td>${formatPct(cur.effRate)}</td>
           <td>ISK ${formatISK(cur.net)}</td>
-          <td>ISK 72,492</td>
+          <td>ISK ${formatISK(CURRENT.credit)}</td>
         </tr>
         <tr>
           <td><b>Flatur skattur 35%</b></td>
@@ -165,6 +293,7 @@ function calculate() {
     </table>
   `;
 
+  updateExplain();
   drawChart();
 }
 
@@ -175,8 +304,8 @@ function drawChart() {
   const ctx = canvas.getContext("2d");
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // “Margins” til að gefa pláss fyrir texta og koma í veg fyrir skörun
-  const M = { left: 80, right: 20, top: 20, bottom: 55 };
+  // “Margins” til að forðast skörun á merkjum
+  const M = { left: 88, right: 24, top: 18, bottom: 58 };
   const x0 = M.left;
   const y0 = canvas.height - M.bottom;
   const x1 = canvas.width - M.right;
@@ -187,18 +316,18 @@ function drawChart() {
   const maxGross = 2000000;
   const step = 20000;
 
-  // Finna hæstu nettólaun til að kvarða (skala) línuritið
+  // Finna hæstu nettó til að kvarða
   let maxNet = 0;
   for (let g = 0; g <= maxGross; g += step) {
+    const { taxBase } = computeTaxBase(g);
     maxNet = Math.max(
       maxNet,
-      calcCurrentSystem(g).net,
-      calcFlatSystem(g).net
+      calcCurrentSystemFromTaxBase(g, taxBase).net,
+      calcFlatSystemFromTaxBase(g, taxBase).net
     );
   }
   if (maxNet <= 0) maxNet = 1;
 
-  // Hjálparföll til að varpa (map) yfir í pixel-hnit
   const mapX = g => x0 + (g / maxGross) * plotW;
   const mapY = net => y0 - (net / maxNet) * plotH;
 
@@ -211,29 +340,27 @@ function drawChart() {
   ctx.lineWidth = 1;
   ctx.stroke();
 
+  // Titlar
   ctx.font = "12px system-ui";
   ctx.fillStyle = "#444";
 
-  // Y-ás titill (lóðréttur) — forðar skörun við tölur
   ctx.save();
   ctx.translate(18, y1 + plotH / 2);
   ctx.rotate(-Math.PI / 2);
   ctx.textAlign = "center";
-  ctx.fillText("Nettólaun (ISK)", 0, 0);
+  ctx.fillText("Nettó (ISK)", 0, 0);
   ctx.restore();
 
-  // X-ás titill (miðjaður og neðar) — forðar skörun við tick-merkingar
   ctx.textAlign = "center";
-  ctx.fillText("Heildarlaun", x0 + plotW / 2, canvas.height - 12);
+  ctx.fillText("Upphæð (brúttó)", x0 + plotW / 2, canvas.height - 12);
 
-  // Y-ás ticks
+  // Y ticks + stoðlínur
   ctx.textAlign = "right";
   for (let i = 0; i <= 3; i++) {
     const val = (i / 3) * maxNet;
     const y = mapY(val);
-    ctx.fillText(formatISK(val), x0 - 8, y + 4);
+    ctx.fillText(formatISK(val), x0 - 10, y + 4);
 
-    // Léttar láréttar stoðlínur
     ctx.beginPath();
     ctx.moveTo(x0, y);
     ctx.lineTo(x1, y);
@@ -241,7 +368,7 @@ function drawChart() {
     ctx.stroke();
   }
 
-  // X-ás ticks
+  // X ticks
   ctx.textAlign = "center";
   for (let i = 0; i <= 4; i++) {
     const g = (i / 4) * maxGross;
@@ -249,69 +376,20 @@ function drawChart() {
     ctx.fillText(formatISK(g), x, y0 + 18);
   }
 
-  // Ferill: núverandi kerfi
+  // Ferill: núverandi
   ctx.beginPath();
   for (let g = 0; g <= maxGross; g += step) {
+    const { taxBase } = computeTaxBase(g);
     const x = mapX(g);
-    const y = mapY(calcCurrentSystem(g).net);
+    const y = mapY(calcCurrentSystemFromTaxBase(g, taxBase).net);
     g === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
   }
   ctx.strokeStyle = "#0074d9";
   ctx.lineWidth = 2;
   ctx.stroke();
 
-  // Ferill: flatt kerfi
+  // Ferill: flatur
   ctx.beginPath();
   for (let g = 0; g <= maxGross; g += step) {
+    const { taxBase } = computeTaxBase(g);
     const x = mapX(g);
-    const y = mapY(calcFlatSystem(g).net);
-    g === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
-  }
-  ctx.strokeStyle = "#2ecc40";
-  ctx.lineWidth = 2;
-  ctx.stroke();
-
-  // Legend (til að texti sé ekki “í miðju” á grafi)
-  const lx = x1 - 170;
-  const ly = y1 + 10;
-  ctx.font = "12px system-ui";
-  ctx.textAlign = "left";
-
-  ctx.strokeStyle = "#0074d9";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(lx, ly);
-  ctx.lineTo(lx + 20, ly);
-  ctx.stroke();
-  ctx.fillStyle = "#0074d9";
-  ctx.fillText("Núverandi kerfi", lx + 28, ly + 4);
-
-  ctx.strokeStyle = "#2ecc40";
-  ctx.lineWidth = 3;
-  ctx.beginPath();
-  ctx.moveTo(lx, ly + 18);
-  ctx.lineTo(lx + 20, ly + 18);
-  ctx.stroke();
-  ctx.fillStyle = "#2ecc40";
-  ctx.fillText("Flatur skattur", lx + 28, ly + 22);
-}
-
-// Hreinsa línurit
-function clearChart() {
-  const canvas = document.getElementById("chart");
-  canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
-}
-
-/* ================= RÆSING ================= */
-
-document.getElementById("salaryForm").addEventListener("submit", e => {
-  e.preventDefault();
-  calculate();
-});
-
-document.getElementById("salary").addEventListener("input", calculate);
-calculate();
-</script>
-
-</body>
-</html>
