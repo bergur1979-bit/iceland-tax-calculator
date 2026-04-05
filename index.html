@@ -251,3 +251,291 @@ function calculate() {
     : `Skattstofn: ISK ${formatISK(taxBase)}`;
 
   // Skýringartexti með útsvari
+  document.getElementById("explain").innerHTML = `
+    <b>Útsvar í útreikningi:</b> <span class="mono">${(municipalRate*100).toFixed(2).replace(".", ",")}%</span>
+    ${Math.abs(municipalRate - DEFAULT_MUNICIPAL) < 0.0001 ? "(veg. meðalútsvar 2026)" : "(valið)"}.
+    Vegið meðalútsvar 2026 er 14,94%. [1](https://outlook.live.com/calendar/item/AQMkADAwATE0OTkAMC01YmZmAC04MWMwLTAwAi0wMAoARgAAA7O65eq1Dd5DigIJvVfh3rUHADOf6qgP98hFq7oQyU_GaSEAAAIBDQAAAJoWdMhpjL5LhFVwpSqkoGsAB7O5-LwAAAA%3d)<br>
+    <b>Aðgreining:</b> Taflan sýnir tekjuskatt (ríki) og útsvar (sveitarfélag) fyrir persónuafslátt, og svo heildarskatt eftir persónuafslátt.
+    Tekjuskattshlutföll ríkis 2026 eru 16,55% / 23,05% / 31,35% og útsvar (viðmið) 14,94%. [2](https://outlook.live.com/calendar/item/AQMkADAwATE0OTkAMC01YmZmAC04MWMwLTAwAi0wMAoARgAAA7O65eq1Dd5DigIJvVfh3rUHADOf6qgP98hFq7oQyU_GaSEAAAIBDQAAAJoWdMhpjL5LhFVwpSqkoGsAB-Jvh3IAAAA%3d)[1](https://outlook.live.com/calendar/item/AQMkADAwATE0OTkAMC01YmZmAC04MWMwLTAwAi0wMAoARgAAA7O65eq1Dd5DigIJvVfh3rUHADOf6qgP98hFq7oQyU_GaSEAAAIBDQAAAJoWdMhpjL5LhFVwpSqkoGsAB7O5-LwAAAA%3d)
+  `;
+
+  el.innerHTML = `
+    <div class="hint" style="margin-top:0.6rem;"><b>${taxBaseLine}</b></div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>Kerfi</th>
+          <th>Tekjuskattur (fyrir afsl.)</th>
+          <th>Útsvar (fyrir afsl.)</th>
+          <th>Heildarskattur (fyrir afsl.)</th>
+          <th>Persónuafsláttur</th>
+          <th>Heildarskattur (eftir afsl.)</th>
+          <th>Nettó</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><b>Núverandi (2026)</b></td>
+          <td>ISK ${formatISK(cur.breakdown.statePre)}</td>
+          <td>ISK ${formatISK(cur.breakdown.municipalPre)}</td>
+          <td>ISK ${formatISK(cur.breakdown.totalPre)}</td>
+          <td>− ISK ${formatISK(cur.breakdown.credit)}</td>
+          <td><b>ISK ${formatISK(cur.taxTotal)}</b></td>
+          <td><b>ISK ${formatISK(cur.net)}</b></td>
+        </tr>
+        <tr>
+          <td><b>Flatur 35% (dæmi)</b></td>
+          <td>ISK ${formatISK(flat.breakdown.statePre)}</td>
+          <td>ISK ${formatISK(flat.breakdown.municipalPre)}</td>
+          <td>ISK ${formatISK(flat.breakdown.totalPre)}</td>
+          <td>− ISK ${formatISK(flat.breakdown.credit)}</td>
+          <td><b>ISK ${formatISK(flat.taxTotal)}</b></td>
+          <td><b>ISK ${formatISK(flat.net)}</b></td>
+        </tr>
+      </tbody>
+      <tfoot>
+        <tr>
+          <td><b>Mismunur (flatur − núverandi)</b></td>
+          <td>ISK ${formatISK(flat.breakdown.statePre - cur.breakdown.statePre)}</td>
+          <td>ISK ${formatISK(flat.breakdown.municipalPre - cur.breakdown.municipalPre)}</td>
+          <td>ISK ${formatISK(flat.breakdown.totalPre - cur.breakdown.totalPre)}</td>
+          <td></td>
+          <td><b>ISK ${formatISK(flat.taxTotal - cur.taxTotal)}</b></td>
+          <td><b>ISK ${formatISK(flat.net - cur.net)}</b></td>
+        </tr>
+      </tfoot>
+    </table>
+
+    <div class="hint" style="margin-top:0.6rem;">
+      <b>Flata kerfið:</b> hér er 35% túlkað sem heildarstaðgreiðsla (tekjuskattur + útsvar).
+      Með útsvari ${ (municipalRate*100).toFixed(2).replace(".", ",") }% verður “tekjuskattshluti” flata kerfisins ${ ((Math.max(0, 0.35 - municipalRate))*100).toFixed(2).replace(".", ",") }%.
+    </div>
+  `;
+
+  drawChart();
+}
+
+/* ================= LÍNURIT ================= */
+
+function drawChart() {
+  const canvas = document.getElementById("chart");
+  const ctx = canvas.getContext("2d");
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  const metric = document.getElementById("showMetric").value;
+  const municipalRate = getMunicipalRate();
+  const grossMarker = Number(document.getElementById("salary").value) || 0;
+
+  // Plot area
+  const M = { left: 92, right: 24, top: 18, bottom: 62 };
+  const x0 = M.left;
+  const y0 = canvas.height - M.bottom;
+  const x1 = canvas.width - M.right;
+  const y1 = M.top;
+  const plotW = x1 - x0;
+  const plotH = y0 - y1;
+
+  const maxGross = 2000000;
+  const step = 20000;
+
+  // Determine max/min for selected metric
+  let maxVal = -Infinity;
+  let minVal = Infinity;
+
+  function valueFor(g, sys) {
+    const { taxBase } = computeTaxBase(g);
+    const cur = calcCurrentSystem(g, taxBase, municipalRate);
+    const flat = calcFlatSystem(g, taxBase, municipalRate);
+    if (metric === "netto") return sys === "cur" ? cur.net : flat.net;
+    if (metric === "skattur") return sys === "cur" ? cur.taxTotal : flat.taxTotal;
+    // diffnet:
+    return flat.net - cur.net;
+  }
+
+  for (let g = 0; g <= maxGross; g += step) {
+    if (metric === "diffnet") {
+      const v = valueFor(g, "diff");
+      maxVal = Math.max(maxVal, v);
+      minVal = Math.min(minVal, v);
+    } else {
+      maxVal = Math.max(maxVal, valueFor(g, "cur"), valueFor(g, "flat"));
+      minVal = Math.min(minVal, valueFor(g, "cur"), valueFor(g, "flat"));
+    }
+  }
+  if (!isFinite(maxVal) || !isFinite(minVal) || maxVal === minVal) {
+    maxVal = 1; minVal = 0;
+  }
+
+  const pad = (maxVal - minVal) * 0.08;
+  maxVal += pad; minVal -= pad;
+
+  const mapX = g => x0 + (g / maxGross) * plotW;
+  const mapY = v => y0 - ((v - minVal) / (maxVal - minVal)) * plotH;
+
+  // Axes
+  ctx.beginPath();
+  ctx.moveTo(x0, y1);
+  ctx.lineTo(x0, y0);
+  ctx.lineTo(x1, y0);
+  ctx.strokeStyle = "#bbb";
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  // Axis titles
+  ctx.font = "12px system-ui";
+  ctx.fillStyle = "#444";
+
+  const yTitle =
+    metric === "netto" ? "Nettó (ISK)" :
+    metric === "skattur" ? "Heildarskattur (ISK)" :
+    "Nettó-mismunur (ISK)";
+
+  ctx.save();
+  ctx.translate(18, y1 + plotH / 2);
+  ctx.rotate(-Math.PI / 2);
+  ctx.textAlign = "center";
+  ctx.fillText(yTitle, 0, 0);
+  ctx.restore();
+
+  ctx.textAlign = "center";
+  ctx.fillText("Upphæð (brúttó)", x0 + plotW / 2, canvas.height - 14);
+
+  // Y ticks and grid
+  ctx.textAlign = "right";
+  for (let i = 0; i <= 4; i++) {
+    const t = i / 4;
+    const val = minVal + t * (maxVal - minVal);
+    const y = mapY(val);
+    ctx.fillText(formatISK(val), x0 - 10, y + 4);
+
+    ctx.beginPath();
+    ctx.moveTo(x0, y);
+    ctx.lineTo(x1, y);
+    ctx.strokeStyle = "#eee";
+    ctx.stroke();
+  }
+
+  // X ticks
+  ctx.textAlign = "center";
+  for (let i = 0; i <= 4; i++) {
+    const g = (i / 4) * maxGross;
+    ctx.fillText(formatISK(g), mapX(g), y0 + 20);
+  }
+
+  // Curves
+  function drawCurve(sys, color) {
+    ctx.beginPath();
+    for (let g = 0; g <= maxGross; g += step) {
+      const x = mapX(g);
+      const v = (metric === "diffnet")
+        ? valueFor(g, "diff")
+        : valueFor(g, sys);
+      const y = mapY(v);
+      g === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 2;
+    ctx.stroke();
+  }
+
+  if (metric === "diffnet") {
+    drawCurve("diff", "#8b5cf6");
+  } else {
+    drawCurve("cur", "#0074d9");
+    drawCurve("flat", "#2ecc40");
+  }
+
+  // Legend
+  const lx = x1 - 220;
+  const ly = y1 + 10;
+  ctx.font = "12px system-ui";
+  ctx.textAlign = "left";
+
+  if (metric === "diffnet") {
+    ctx.strokeStyle = "#8b5cf6"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + 20, ly); ctx.stroke();
+    ctx.fillStyle = "#8b5cf6";
+    ctx.fillText("Nettó-mismunur (flatur − núverandi)", lx + 28, ly + 4);
+  } else {
+    ctx.strokeStyle = "#0074d9"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(lx, ly); ctx.lineTo(lx + 20, ly); ctx.stroke();
+    ctx.fillStyle = "#0074d9";
+    ctx.fillText("Núverandi (2026)", lx + 28, ly + 4);
+
+    ctx.strokeStyle = "#2ecc40"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(lx, ly + 18); ctx.lineTo(lx + 20, ly + 18); ctx.stroke();
+    ctx.fillStyle = "#2ecc40";
+    ctx.fillText("Flatur 35% (dæmi)", lx + 28, ly + 22);
+  }
+
+  // Marker at current salary with dots + labels
+  const gM = clamp(grossMarker, 0, maxGross);
+  const xM = mapX(gM);
+
+  ctx.save();
+  ctx.setLineDash([5, 4]);
+  ctx.strokeStyle = "#999";
+  ctx.beginPath();
+  ctx.moveTo(xM, y1);
+  ctx.lineTo(xM, y0);
+  ctx.stroke();
+  ctx.restore();
+
+  function drawPointLabel(sys, color, dy) {
+    const { taxBase } = computeTaxBase(gM);
+    const cur = calcCurrentSystem(gM, taxBase, municipalRate);
+    const flat = calcFlatSystem(gM, taxBase, municipalRate);
+    const v = metric === "netto"
+      ? (sys === "cur" ? cur.net : flat.net)
+      : metric === "skattur"
+        ? (sys === "cur" ? cur.taxTotal : flat.taxTotal)
+        : (flat.net - cur.net);
+
+    const y = mapY(v);
+
+    // point
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(xM, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+
+    // label
+    ctx.font = "12px system-ui";
+    ctx.fillStyle = "#222";
+    ctx.textAlign = "left";
+    ctx.fillText(`${sys === "cur" ? "Núv." : "Flatur"}: ${formatISK(v)}`, xM + 8, y + dy);
+  }
+
+  if (metric === "diffnet") {
+    drawPointLabel("diff", "#8b5cf6", -8);
+  } else {
+    drawPointLabel("cur", "#0074d9", -10);
+    drawPointLabel("flat", "#2ecc40", 14);
+  }
+}
+
+function clearChart() {
+  const canvas = document.getElementById("chart");
+  canvas.getContext("2d").clearRect(0, 0, canvas.width, canvas.height);
+}
+
+/* ================= RÆSING ================= */
+
+document.getElementById("salaryForm").addEventListener("submit", e => {
+  e.preventDefault();
+  calculate();
+});
+
+["salary", "incomeType", "showMetric", "municipalRate", "applyPensionDeduction", "pensionRate"]
+  .forEach(id => document.getElementById(id).addEventListener("input", calculate));
+
+document.getElementById("incomeType").addEventListener("change", calculate);
+document.getElementById("applyPensionDeduction").addEventListener("change", calculate);
+
+updateControls();
+calculate();
+</script>
+
+</body>
+</html>
